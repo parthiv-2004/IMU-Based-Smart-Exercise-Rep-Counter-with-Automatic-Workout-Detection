@@ -366,9 +366,3 @@ Dashboard Visualization
 5. k-NN classifier predicts exercise type
 6. FSM logic counts repetitions
 7. Dashboard updates in real time
-
----
-
-## Author
-
-Developed as a wearable embedded systems and machine learning project for real-time exercise tracking and automatic workout classification.
