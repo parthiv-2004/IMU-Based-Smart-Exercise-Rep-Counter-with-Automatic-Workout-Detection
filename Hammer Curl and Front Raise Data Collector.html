@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMU — Hammer Curl & Front Raise Collector</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f4f3ef; color: #1a1a1a; min-height: 100vh; }
+  .app { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  h1 { font-size: 22px; font-weight: 600; color: #111; }
+  .subtitle { font-size: 13px; color: #888; margin-top: 4px; margin-bottom: 1.5rem; }
+
+  .config { background: #fff; border: 1px solid #e5e3de; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .config label { font-size: 13px; color: #666; white-space: nowrap; }
+  .config input { flex: 1; min-width: 140px; font-size: 14px; padding: 7px 11px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; color: #111; outline: none; }
+  .config input:focus { border-color: #378ADD; }
+
+  /* WORKOUT SELECTOR */
+  .workout-select { background: #fff; border: 1px solid #e5e3de; border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 1rem; }
+  .workout-select h3 { font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+  .workout-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .wbtn { flex: 1; min-width: 140px; padding: 12px 10px; border-radius: 10px; border: 2px solid #e5e3de; background: #fafafa; font-size: 14px; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s; color: #555; }
+  .wbtn:hover { border-color: #aaa; color: #111; }
+  .wbtn.selected { border-color: #185FA5; background: #EBF4FF; color: #185FA5; }
+  .wbtn .wicon { font-size: 22px; display: block; margin-bottom: 4px; }
+  .wbtn .wlabel { font-size: 12px; }
+
+  .status-bar { display: flex; align-items: center; gap: 8px; padding: 0.6rem 1rem; border-radius: 8px; background: #fff; border: 1px solid #e5e3de; margin-bottom: 1rem; font-size: 13px; color: #666; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #D4537E; flex-shrink: 0; transition: background 0.3s; }
+  .dot.connected { background: #639922; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid #e5e3de; border-radius: 10px; padding: 0.85rem 1rem; text-align: center; }
+  .stat-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-value { font-size: 24px; font-weight: 600; color: #111; margin-top: 3px; }
+
+  .instruction-box { border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; font-size: 15px; line-height: 1.6; }
+  .instruction-box.blue { background: #EBF4FF; border: 1px solid #B5D4F4; color: #0C447C; }
+  .instruction-box.orange { background: #FFF4E6; border: 1px solid #FFDDA8; color: #7A3B00; }
+  .instruction-box.green { background: #EAF3DE; border: 1px solid #B5D98A; color: #2A5000; }
+
+  .next-btn-wrap { margin-bottom: 1rem; }
+  .btn-next { width: 100%; padding: 16px; border-radius: 12px; font-size: 18px; font-weight: 600; border: none; background: #185FA5; color: #fff; cursor: pointer; font-family: 'Segoe UI', sans-serif; transition: background 0.15s, transform 0.1s; }
+  .btn-next:hover { background: #0C447C; }
+  .btn-next:active { transform: scale(0.98); }
+  .btn-next:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-next.recording { background: #A32D2D; }
+  .btn-next.recording:hover { background: #791F1F; }
+
+  .phase-card { background: #fff; border: 1px solid #e5e3de; border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 0.75rem; transition: border-color 0.2s; }
+  .phase-card.active { border-color: #378ADD; border-width: 2px; animation: pulse-border 1.5s infinite; }
+  .phase-card.done { border-color: #639922; }
+  @keyframes pulse-border { 0%,100%{border-color:#378ADD} 50%{border-color:#7ab8f0} }
+
+  .phase-header { display: flex; align-items: center; gap: 12px; margin-bottom: 0.75rem; }
+  .phase-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; background: #f4f3ef; color: #888; flex-shrink: 0; }
+  .phase-num.active { background: #E6F1FB; color: #185FA5; }
+  .phase-num.done { background: #EAF3DE; color: #3B6D11; }
+  .phase-title { font-size: 15px; font-weight: 600; color: #111; }
+  .phase-desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .phase-badge { margin-left: auto; font-size: 11px; padding: 3px 10px; border-radius: 6px; font-weight: 500; white-space: nowrap; }
+  .badge-waiting { background: #f4f3ef; color: #aaa; }
+  .badge-recording { background: #FAEEDA; color: #633806; }
+  .badge-done { background: #EAF3DE; color: #27500A; }
+
+  .imu-live { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+  .imu-val { background: #f9f8f5; border-radius: 7px; padding: 6px 8px; }
+  .imu-val-label { font-size: 10px; color: #aaa; text-transform: uppercase; }
+  .imu-val-num { font-size: 12px; font-weight: 600; color: #333; margin-top: 2px; font-family: 'Courier New', monospace; }
+  .sample-count { font-size: 12px; color: #aaa; margin-top: 8px; text-align: right; }
+  .sample-count span { color: #378ADD; font-weight: 600; }
+
+  .controls { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+  .btn { padding: 10px 20px; border-radius: 9px; font-size: 14px; font-weight: 500; border: 1px solid #ddd; background: #fff; color: #333; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: #f4f3ef; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-danger { background: #A32D2D; color: #fff; border-color: #A32D2D; }
+  .btn-danger:hover { background: #791F1F; }
+
+  .log { background: #1a1a1a; color: #aaa; border-radius: 10px; padding: 0.85rem 1rem; max-height: 130px; overflow-y: auto; font-size: 12px; font-family: 'Courier New', monospace; margin-top: 1rem; }
+  .log-ok { color: #7dc55a; }
+  .log-warn { color: #f0a830; }
+  .log-err { color: #e05a5a; }
+
+  .tip-box { background: #fff; border: 1px solid #e5e3de; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; font-size: 13px; color: #555; line-height: 1.7; }
+  .tip-box strong { color: #111; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>IMU Data Collector</h1>
+  <p class="subtitle">Phase 2 — Hammer Curl &amp; Front Raise labeled data recording</p>
+
+  <!-- CONNECTION -->
+  <div class="config">
+    <label>ESP8266 IP</label>
+    <input type="text" id="espIp" placeholder="e.g. 192.168.43.50" />
+    <button class="btn" style="background:#185FA5;color:#fff;border-color:#185FA5;" onclick="connectWS()">Connect</button>
+  </div>
+  <div class="config">
+    <label>PC IP</label>
+    <input type="text" id="pcIp" value="192.168.1.40" />
+    <label style="margin-left:8px;">Port</label>
+    <input type="text" id="pcPort" value="5050" style="max-width:80px;" />
+  </div>
+
+  <div class="status-bar">
+    <div class="dot" id="connDot"></div>
+    <span id="connStatus">Not connected</span>
+  </div>
+
+  <!-- WORKOUT SELECTOR -->
+  <div class="workout-select">
+    <h3>Select workout to record</h3>
+    <div class="workout-btns">
+      <button class="wbtn selected" id="wbtn-hammer" onclick="selectWorkout('hammer')">
+        <span class="wicon">💪</span>
+        <span class="wlabel">Hammer Curl</span>
+      </button>
+      <button class="wbtn" id="wbtn-front" onclick="selectWorkout('front')">
+        <span class="wicon">🏋️</span>
+        <span class="wlabel">Front Raise</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TIP BOX -->
+  <div class="tip-box" id="tipBox">
+    <strong>Hammer Curl tips:</strong> Keep your palm facing <strong>inward (neutral grip)</strong> throughout the entire movement — do NOT rotate your wrist. Elbow stays pinned to your side. This is the key difference from a regular bicep curl.
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Cycle</div><div class="stat-value" id="cycleCount">0</div></div>
+    <div class="stat"><div class="stat-label">Samples</div><div class="stat-value" id="totalSamples">0</div></div>
+    <div class="stat"><div class="stat-label">Phase</div><div class="stat-value" id="currentPhaseNum">—</div></div>
+  </div>
+
+  <div class="instruction-box blue" id="instructionBox">
+    Select a workout above, connect to ESP8266, then press <strong>Start recording</strong>.
+  </div>
+
+  <div class="next-btn-wrap">
+    <button class="btn-next" id="nextBtn" onclick="nextPhase()" disabled>Start recording</button>
+  </div>
+
+  <div id="phaseCards"></div>
+
+  <div class="controls">
+    <button class="btn" id="retryBtn" onclick="retryPhase()" disabled>Retry this phase</button>
+    <button class="btn btn-danger" id="endBtn" onclick="endSession()" disabled>End &amp; Save</button>
+  </div>
+
+  <div class="log" id="logBox"></div>
+</div>
+
+<script>
+// ─── WORKOUT DEFINITIONS ──────────────────────────────────────────────────────
+const WORKOUTS = {
+  hammer: {
+    label: 'Hammer Curl',
+    color: 'orange',
+    tip: '<strong>Hammer Curl tips:</strong> Keep your palm facing <strong>inward (neutral grip)</strong> throughout — do NOT rotate your wrist. Elbow stays pinned to your side. This is the key difference from a regular bicep curl.',
+    phases: [
+      { id: 'hammer_curl_up',   label: 'Hammer Curl — Up',   desc: 'Curl upward, neutral grip (thumb up), elbow fixed',  instruction: 'Perform the <strong>upward</strong> hammer curl now. Palm faces inward (thumb pointing up). Elbow stays fixed. Press <strong>Done</strong> when arm is fully curled.' },
+      { id: 'hammer_curl_down', label: 'Hammer Curl — Down', desc: 'Lower arm back down, keep neutral grip throughout',   instruction: 'Now slowly lower your arm back down. Keep the <strong>neutral grip</strong> — do NOT rotate your palm. Press <strong>Done</strong> when fully extended.' },
+      { id: 'hammer_rest',      label: 'Rest (arm down)',    desc: 'Hold arm still at resting position, no movement',     instruction: 'Hold your arm completely still at your side in the <strong>resting/neutral position</strong>. This records the baseline. Press <strong>Done</strong> after 3 seconds.' },
+    ]
+  },
+  front: {
+    label: 'Front Raise',
+    color: 'green',
+    tip: '<strong>Front Raise tips:</strong> Keep your arm <strong>completely straight</strong> — do not bend the elbow at all. Raise directly in front of you to shoulder height. This uses the shoulder (anterior deltoid), not the bicep.',
+    phases: [
+      { id: 'front_raise_up',   label: 'Front Raise — Up',   desc: 'Raise straight arm forward to shoulder height',      instruction: 'Raise your <strong>straight arm forward</strong> (in front of you) up to shoulder height. Keep elbow locked. Press <strong>Done</strong> when arm is at shoulder height.' },
+      { id: 'front_raise_down', label: 'Front Raise — Down', desc: 'Lower straight arm back to resting position',        instruction: 'Slowly lower your straight arm back down to your side. Press <strong>Done</strong> when fully lowered.' },
+      { id: 'front_rest',       label: 'Rest (arm down)',    desc: 'Hold arm still at resting position, no movement',    instruction: 'Hold your arm completely still at your side. This records the baseline. Press <strong>Done</strong> after 3 seconds.' },
+    ]
+  }
+};
+
+let currentWorkout = 'hammer';
+let ws = null, connected = false;
+let currentPhase = -1, cycleCount = 0, totalSamples = 0;
+let allData = [], currentPhaseData = [];
+let sessionStarted = false, phaseActive = false;
+
+// ─── WORKOUT SELECTION ────────────────────────────────────────────────────────
+function selectWorkout(type) {
+  if (phaseActive || sessionStarted) {
+    log('Cannot change workout mid-session', 'err');
+    return;
+  }
+  currentWorkout = type;
+  document.querySelectorAll('.wbtn').forEach(b => b.classList.remove('selected'));
+  document.getElementById(`wbtn-${type}`).classList.add('selected');
+
+  const w = WORKOUTS[type];
+  document.getElementById('tipBox').innerHTML = w.tip;
+  document.getElementById('instructionBox').className = `instruction-box ${w.color}`;
+  document.getElementById('instructionBox').innerHTML = `Selected: <strong>${w.label}</strong>. Connect to ESP8266 then press Start recording.`;
+  buildCards();
+  log(`Switched to: ${w.label}`, 'warn');
+}
+
+function buildCards() {
+  const phases = WORKOUTS[currentWorkout].phases;
+  document.getElementById('phaseCards').innerHTML = phases.map((p, i) => `
+    <div class="phase-card" id="card-${i}">
+      <div class="phase-header">
+        <div class="phase-num" id="num-${i}">${i+1}</div>
+        <div>
+          <div class="phase-title">${p.label}</div>
+          <div class="phase-desc">${p.desc}</div>
+        </div>
+        <span class="phase-badge badge-waiting" id="badge-${i}">Waiting</span>
+      </div>
+      <div class="imu-live">
+        ${['ax','ay','az','gx','gy','gz'].map(k => `
+          <div class="imu-val">
+            <div class="imu-val-label">${k}</div>
+            <div class="imu-val-num" id="${k}-${i}">—</div>
+          </div>`).join('')}
+      </div>
+      <div class="sample-count">Samples: <span id="scount-${i}">0</span></div>
+    </div>`).join('');
+}
+buildCards();
+
+// ─── WEBSOCKET ────────────────────────────────────────────────────────────────
+function connectWS() {
+  const ip = document.getElementById('espIp').value.trim();
+  if (!ip) { log('Enter ESP IP first', 'err'); return; }
+  try {
+    if (ws) ws.close();
+    ws = new WebSocket(`ws://${ip}:81`);
+    document.getElementById('connStatus').textContent = `Connecting to ${ip}...`;
+    ws.onopen = () => {
+      connected = true;
+      document.getElementById('connDot').className = 'dot connected';
+      document.getElementById('connStatus').textContent = `Connected to ${ip}`;
+      document.getElementById('nextBtn').disabled = false;
+      log(`Connected to ${ip}`, 'ok');
+    };
+    ws.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (phaseActive && currentPhase >= 0) {
+          currentPhaseData.push({ t: Date.now(), ax: d.ax, ay: d.ay, az: d.az, gx: d.gx, gy: d.gy, gz: d.gz });
+          totalSamples++;
+          document.getElementById('totalSamples').textContent = totalSamples;
+          document.getElementById(`scount-${currentPhase}`).textContent = currentPhaseData.length;
+          ['ax','ay','az','gx','gy','gz'].forEach(k => {
+            const el = document.getElementById(`${k}-${currentPhase}`);
+            if (el && typeof d[k] === 'number') el.textContent = d[k].toFixed(3);
+          });
+        }
+      } catch(e) {}
+    };
+    ws.onerror = () => log('WebSocket error', 'err');
+    ws.onclose = () => {
+      connected = false;
+      document.getElementById('connDot').className = 'dot';
+      document.getElementById('connStatus').textContent = 'Disconnected';
+      document.getElementById('nextBtn').disabled = true;
+      log('Disconnected', 'warn');
+    };
+  } catch(err) { log('Failed: ' + err.message, 'err'); }
+}
+
+// ─── SESSION CONTROL ─────────────────────────────────────────────────────────
+function nextPhase() {
+  if (!connected) { log('Not connected', 'err'); return; }
+  const phases = WORKOUTS[currentWorkout].phases;
+
+  if (phaseActive) {
+    finishPhase();
+    return;
+  }
+
+  if (!sessionStarted) {
+    sessionStarted = true;
+    cycleCount++;
+    document.getElementById('cycleCount').textContent = cycleCount;
+    document.getElementById('endBtn').disabled = false;
+    document.getElementById('retryBtn').disabled = false;
+    for (let i = 0; i < phases.length; i++) {
+      setPhaseUI(i, '');
+      document.getElementById(`scount-${i}`).textContent = '0';
+    }
+    log(`Cycle ${cycleCount} started — ${WORKOUTS[currentWorkout].label}`, 'ok');
+    startPhase(0);
+    return;
+  }
+
+  const next = currentPhase + 1;
+  if (next < phases.length) {
+    startPhase(next);
+  } else {
+    cycleCount++;
+    document.getElementById('cycleCount').textContent = cycleCount;
+    for (let i = 0; i < phases.length; i++) {
+      setPhaseUI(i, '');
+      document.getElementById(`scount-${i}`).textContent = '0';
+    }
+    log(`Cycle ${cycleCount} started`, 'ok');
+    startPhase(0);
+  }
+}
+
+function startPhase(i) {
+  const phases = WORKOUTS[currentWorkout].phases;
+  currentPhase = i; currentPhaseData = []; phaseActive = true;
+  document.getElementById('currentPhaseNum').textContent = i + 1;
+  setPhaseUI(i, 'active');
+  const w = WORKOUTS[currentWorkout];
+  document.getElementById('instructionBox').className = `instruction-box ${w.color}`;
+  document.getElementById('instructionBox').innerHTML = `<strong>Phase ${i+1} — ${phases[i].label}:</strong><br>${phases[i].instruction}`;
+  document.getElementById('nextBtn').textContent = 'Done with this phase';
+  document.getElementById('nextBtn').className = 'btn-next recording';
+  log(`Phase ${i+1} started: ${phases[i].label}`, 'ok');
+}
+
+function finishPhase() {
+  const phases = WORKOUTS[currentWorkout].phases;
+  phaseActive = false;
+  setPhaseUI(currentPhase, 'done');
+  allData.push({
+    workout: currentWorkout,
+    workout_label: WORKOUTS[currentWorkout].label,
+    cycle: cycleCount,
+    phase_index: currentPhase,
+    phase_id: phases[currentPhase].id,
+    label: phases[currentPhase].label,
+    sample_count: currentPhaseData.length,
+    samples: currentPhaseData
+  });
+  log(`Phase ${currentPhase+1} done — ${currentPhaseData.length} samples`, 'ok');
+
+  const isLast = currentPhase === phases.length - 1;
+  if (isLast) {
+    const w = WORKOUTS[currentWorkout];
+    document.getElementById('instructionBox').className = `instruction-box ${w.color}`;
+    document.getElementById('instructionBox').innerHTML = `<strong>Cycle ${cycleCount} complete!</strong> Press the button to do another cycle, or <strong>End &amp; Save</strong> to finish.`;
+    document.getElementById('nextBtn').textContent = `Start cycle ${cycleCount + 1}`;
+    document.getElementById('nextBtn').className = 'btn-next';
+    document.getElementById('currentPhaseNum').textContent = '—';
+    log(`Cycle ${cycleCount} complete!`, 'ok');
+    sessionStarted = false;
+  } else {
+    const next = phases[currentPhase + 1];
+    document.getElementById('instructionBox').innerHTML = `Phase ${currentPhase+1} done. Ready for <strong>${next.label}</strong>. Press the button when ready.`;
+    document.getElementById('nextBtn').textContent = `Start: ${next.label}`;
+    document.getElementById('nextBtn').className = 'btn-next';
+  }
+}
+
+function setPhaseUI(i, state) {
+  document.getElementById(`card-${i}`).className = 'phase-card' + (state==='active'?' active':state==='done'?' done':'');
+  document.getElementById(`num-${i}`).className = 'phase-num' + (state==='active'?' active':state==='done'?' done':'');
+  const badge = document.getElementById(`badge-${i}`);
+  if (state==='active') { badge.className='phase-badge badge-recording'; badge.textContent='Recording...'; }
+  else if (state==='done') { badge.className='phase-badge badge-done'; badge.textContent='Done'; }
+  else { badge.className='phase-badge badge-waiting'; badge.textContent='Waiting'; }
+}
+
+function retryPhase() {
+  if (currentPhase < 0) return;
+  if (phaseActive) phaseActive = false;
+  if (allData.length > 0 && allData[allData.length-1].phase_index === currentPhase) {
+    totalSamples -= currentPhaseData.length;
+    document.getElementById('totalSamples').textContent = totalSamples;
+    allData.pop();
+  }
+  log(`Retrying phase ${currentPhase+1}`, 'warn');
+  startPhase(currentPhase);
+}
+
+function endSession() {
+  phaseActive = false;
+  if (allData.length === 0) { log('No data recorded yet', 'err'); return; }
+  const payload = {
+    session_id: 'session_' + Date.now(),
+    workout_type: currentWorkout,
+    workout_label: WORKOUTS[currentWorkout].label,
+    recorded_at: new Date().toISOString(),
+    total_cycles: cycleCount,
+    total_samples: totalSamples,
+    data: allData
+  };
+  const pcIp = document.getElementById('pcIp').value.trim();
+  const pcPort = document.getElementById('pcPort').value.trim() || '5050';
+  log('Saving...', 'warn');
+  fetch(`http://${pcIp}:${pcPort}/save`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(res => { log(`Saved: ${res.filename}`, 'ok'); })
+  .catch(() => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `imu_${currentWorkout}_${Date.now()}.json`;
+    a.click();
+    log('Downloaded as JSON — upload to Claude for analysis', 'ok');
+  });
+}
+
+function log(msg, type='') {
+  const box = document.getElementById('logBox');
+  const t = new Date().toLocaleTimeString();
+  const cls = type==='ok'?'log-ok':type==='warn'?'log-warn':type==='err'?'log-err':'';
+  box.innerHTML += `<div class="${cls}">[${t}] ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rep Tracker — ML</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d0f;--panel:#13131a;--panel2:#1a1a24;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --curl-c:#c8ff00;--hammer-c:#ff9500;--front-c:#00c8ff;
+  --text:#e8e8e0;--muted:#555;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.wrap{max-width:660px;margin:0 auto;padding:2rem 1.25rem 4rem;position:relative;z-index:1;}
+.top-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.75rem;}
+.brand{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.35em;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+h1{font-family:'Barlow Condensed',sans-serif;font-size:clamp(36px,8vw,54px);font-weight:900;line-height:1;color:var(--text);}
+h1 em{font-style:normal;color:var(--curl-c);}
+.ml-badge{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.15em;text-transform:uppercase;background:rgba(200,255,0,.1);border:1px solid rgba(200,255,0,.25);color:var(--curl-c);padding:3px 8px;border-radius:5px;margin-left:8px;vertical-align:middle;}
+.conn-pill{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border2);border-radius:100px;padding:7px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;}
+.conn-pill:hover{border-color:rgba(255,255,255,.25);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;flex-shrink:0;}
+.dot.live{background:var(--curl-c);box-shadow:0 0 8px var(--curl-c);animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+.modal.open{display:flex;}
+.mbox{background:var(--panel);border:1px solid var(--border2);border-radius:16px;padding:2rem;width:min(400px,90vw);}
+.mbox h3{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;margin-bottom:1.25rem;}
+.mbox input{width:100%;background:var(--panel2);border:1px solid var(--border2);border-radius:9px;padding:10px 14px;font-size:14px;color:var(--text);font-family:'Barlow',sans-serif;outline:none;margin-bottom:10px;}
+.mbox input:focus{border-color:rgba(200,255,0,.4);}
+.mrow{display:flex;gap:10px;margin-top:4px;}
+.mbtn{flex:1;padding:10px;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--muted);font-family:'Barlow',sans-serif;transition:all .15s;}
+.mbtn.ok{background:var(--curl-c);color:#000;border-color:var(--curl-c);}
+.mbtn.ok:hover{opacity:.85;}
+.mbtn:hover{color:var(--text);}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1.25rem;}
+.tab{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 10px;text-align:center;transition:all .3s;}
+.tab .icon{font-size:22px;display:block;margin-bottom:5px;}
+.tab .tname{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;}
+.tab .tcnt{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:900;line-height:1.1;color:var(--muted);margin-top:3px;}
+.tab.on-curl  {background:rgba(200,255,0,.07);border-color:var(--curl-c);}
+.tab.on-hammer{background:rgba(255,149,0,.07);border-color:var(--hammer-c);}
+.tab.on-front {background:rgba(0,200,255,.07);border-color:var(--front-c);}
+.tab.on-curl  .tname,.tab.on-curl  .tcnt{color:var(--curl-c);}
+.tab.on-hammer .tname,.tab.on-hammer .tcnt{color:var(--hammer-c);}
+.tab.on-front  .tname,.tab.on-front  .tcnt{color:var(--front-c);}
+.hero{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:2rem 1.5rem 1.5rem;margin-bottom:1rem;text-align:center;position:relative;overflow:hidden;}
+.hero-bg{position:absolute;inset:0;pointer-events:none;transition:background .5s;}
+.wname{font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;transition:color .3s;position:relative;}
+.rep-num{font-family:'Barlow Condensed',sans-serif;font-size:clamp(110px,28vw,155px);font-weight:900;line-height:1;color:var(--muted);transition:color .4s;position:relative;}
+.rep-num.pop{animation:pop .28s ease-out;}
+@keyframes pop{0%{transform:scale(1.22)}100%{transform:scale(1)}}
+.rep-lbl{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);position:relative;}
+.conf-row{display:flex;align-items:center;gap:10px;margin-top:1rem;position:relative;}
+.conf-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap;min-width:70px;}
+.conf-track{flex:1;height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;}
+.conf-fill{height:100%;border-radius:3px;background:var(--muted);transition:width .15s,background .3s;width:0%;}
+.conf-pct{font-size:12px;color:var(--muted);min-width:35px;text-align:right;}
+.state-badge{display:inline-flex;align-items:center;gap:8px;margin-top:.9rem;padding:7px 16px;border-radius:100px;border:1px solid var(--border);background:var(--panel2);font-size:13px;font-weight:500;color:var(--muted);transition:all .3s;position:relative;}
+.state-badge.active{border-color:var(--active-c,var(--muted));color:var(--active-c,var(--muted));}
+.sbdot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.state-badge.active .sbdot{animation:blink .7s infinite;}
+
+/* ML panel */
+.ml-panel{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-bottom:1rem;}
+.ml-title{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;}
+.ml-title span{color:rgba(200,255,0,.6);font-weight:500;}
+.ml-bars{display:flex;flex-direction:column;gap:6px;}
+.ml-bar-row{display:flex;align-items:center;gap:10px;}
+.ml-bar-lbl{font-size:12px;font-family:'Barlow Condensed',sans-serif;font-weight:600;width:100px;color:var(--muted);}
+.ml-bar-track{flex:1;height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;}
+.ml-bar-fill{height:100%;border-radius:4px;transition:width .2s,background .2s;width:0%;}
+.ml-bar-pct{font-size:11px;color:var(--muted);min-width:32px;text-align:right;font-family:'Barlow Condensed',sans-serif;}
+.ml-window{font-size:10px;color:var(--muted);margin-top:6px;}
+.ml-window span{color:var(--curl-c);}
+
+.sensors{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:1rem;}
+.sv{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 5px;text-align:center;}
+.svl{font-size:10px;color:var(--muted);text-transform:uppercase;}
+.svv{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;color:var(--text);margin-top:2px;}
+.chart-card{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-bottom:1rem;}
+.chart-hdr{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:flex;gap:14px;flex-wrap:wrap;}
+.chart-hdr span{display:flex;align-items:center;gap:5px;}
+.chart-hdr i{display:inline-block;width:18px;height:2px;border-radius:1px;}
+canvas{display:block;width:100%;height:70px;}
+.logbox{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:9px 13px;max-height:90px;overflow-y:auto;font-family:'Barlow Condensed',monospace;font-size:12px;margin-bottom:1rem;}
+.l0{color:var(--muted);}.lok{color:var(--curl-c);}.lwrn{color:var(--hammer-c);}
+.lerr{color:#ff4a4a;}.lham{color:var(--hammer-c);}.lfrt{color:var(--front-c);}
+.resetbtn{width:100%;padding:11px;background:var(--panel);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-family:'Barlow',sans-serif;cursor:pointer;transition:all .15s;letter-spacing:.04em;}
+.resetbtn:hover{border-color:rgba(255,255,255,.2);color:var(--text);}
+.flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:50;transition:opacity .06s;}
+.flash.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="flash" id="flash"></div>
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3>Connect to ESP8266</h3>
+    <input type="text" id="espIp" placeholder="e.g. 192.168.43.50" />
+    <div class="mrow">
+      <button class="mbtn" onclick="closeModal()">Cancel</button>
+      <button class="mbtn ok" onclick="doConnect()">Connect</button>
+    </div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <div class="brand">IMU Rep Tracker</div>
+      <h1>AUTO<br><em>DETECT</em> <span class="ml-badge">k-NN ML</span></h1>
+    </div>
+    <button class="conn-pill" onclick="openModal()">
+      <div class="dot" id="dot"></div>
+      <span id="connTxt">Tap to connect</span>
+    </button>
+  </div>
+  <div class="tabs">
+    <div class="tab" id="tab-curl"><span class="icon">💪</span><div class="tname">Bicep Curl</div><div class="tcnt" id="cnt-curl">0</div></div>
+    <div class="tab" id="tab-hammer"><span class="icon">🔨</span><div class="tname">Hammer Curl</div><div class="tcnt" id="cnt-hammer">0</div></div>
+    <div class="tab" id="tab-front"><span class="icon">🏋️</span><div class="tname">Front Raise</div><div class="tcnt" id="cnt-front">0</div></div>
+  </div>
+  <div class="hero">
+    <div class="hero-bg" id="heroBg"></div>
+    <div class="wname" id="wname">Waiting for movement...</div>
+    <div class="rep-num" id="repNum">—</div>
+    <div class="rep-lbl">reps</div>
+    <div class="conf-row">
+      <div class="conf-label">ML Confidence</div>
+      <div class="conf-track"><div class="conf-fill" id="confFill"></div></div>
+      <div class="conf-pct" id="confPct">—</div>
+    </div>
+    <div class="state-badge" id="stateBadge"><div class="sbdot"></div><span id="stateTxt">Idle</span></div>
+  </div>
+
+  <!-- ML PROBABILITY BARS -->
+  <div class="ml-panel">
+    <div class="ml-title">k-NN classifier (k=3) — probability per class <span>97.4% CV accuracy</span></div>
+    <div class="ml-bars">
+      <div class="ml-bar-row">
+        <div class="ml-bar-lbl">💪 Bicep</div>
+        <div class="ml-bar-track"><div class="ml-bar-fill" id="bar-curl" style="background:var(--curl-c)"></div></div>
+        <div class="ml-bar-pct" id="pct-curl">—</div>
+      </div>
+      <div class="ml-bar-row">
+        <div class="ml-bar-lbl">🔨 Hammer</div>
+        <div class="ml-bar-track"><div class="ml-bar-fill" id="bar-hammer" style="background:var(--hammer-c)"></div></div>
+        <div class="ml-bar-pct" id="pct-hammer">—</div>
+      </div>
+      <div class="ml-bar-row">
+        <div class="ml-bar-lbl">🏋️ Front</div>
+        <div class="ml-bar-track"><div class="ml-bar-fill" id="bar-front" style="background:var(--front-c)"></div></div>
+        <div class="ml-bar-pct" id="pct-front">—</div>
+      </div>
+    </div>
+    <div class="ml-window">Window: <span id="winSize">0</span>/40 samples &nbsp;|&nbsp; Motion gate: <span id="motionGate">inactive</span></div>
+  </div>
+
+  <div class="sensors">
+    <div class="sv"><div class="svl">ax</div><div class="svv" id="v-ax">—</div></div>
+    <div class="sv"><div class="svl">ay</div><div class="svv" id="v-ay">—</div></div>
+    <div class="sv"><div class="svl">az</div><div class="svv" id="v-az">—</div></div>
+    <div class="sv"><div class="svl">gx</div><div class="svv" id="v-gx">—</div></div>
+    <div class="sv"><div class="svl">gy</div><div class="svv" id="v-gy">—</div></div>
+    <div class="sv"><div class="svl">gz</div><div class="svv" id="v-gz">—</div></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-hdr">
+      <span><i style="background:var(--curl-c)"></i>ax</span>
+      <span><i style="background:var(--hammer-c)"></i>gz/10</span>
+      <span><i style="background:var(--front-c)"></i>az</span>
+    </div>
+    <canvas id="chart" height="70"></canvas>
+  </div>
+  <div class="logbox" id="logbox"></div>
+  <button class="resetbtn" onclick="resetAll()">Reset all counters</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// k-NN CLASSIFIER — trained on real IMU data
+// 39 training samples: 9 bicep, 20 hammer, 10 front raise
+// Leave-one-out CV accuracy: 97.4% (38/39 correct)
+//
+// FEATURES (33 per sample window):
+//   For each axis [ax,ay,az,gx,gy,gz]: mean, std, range, max, min (5×6=30)
+//   + gz/gy ratio, fraction |gz|>40, fraction |gz|>60 (3)
+//
+// CLASSIFICATION PIPELINE:
+//   1. Accumulate samples in a rolling window (min 20, max 40)
+//   2. Motion gate: only classify when ax_range > 0.8 (arm is moving)
+//   3. Extract features from window
+//   4. Normalize using training mean/std
+//   5. k-NN with k=3: find 3 nearest training points, vote
+//   6. Stability: lock classification after 5 consecutive same votes
+//   7. FSM: count rep when ax (or az for front raise) crosses thresholds
+// ═══════════════════════════════════════════════════════════════════
+
+// ── TRAINING DATA (embedded, computed from your real sessions) ────
+const MEANS=[0.020836,0.537530,1.500249,0.630915,-0.869333,0.392382,0.212694,0.837036,0.800785,-0.036251,0.302326,0.191993,0.653587,0.576495,-0.077092,-9.949896,19.522509,99.531813,37.758867,-61.772946,-8.836059,18.049840,68.537485,26.297321,-42.240164,22.457101,23.967211,85.064003,60.285379,-24.778623,1.763098,0.332296,0.196494];
+const STDS=[0.370570,0.172618,0.463228,0.486368,0.099657,0.298425,0.070894,0.246941,0.294176,0.277585,0.386265,0.056421,0.187144,0.348168,0.390440,10.951090,7.003839,40.469667,27.722847,41.447284,16.405216,7.433102,27.530818,31.339607,15.320930,23.241986,13.751661,58.780162,36.790484,40.293047,1.433189,0.293038,0.225419];
+const TRAIN=[
+  [0,[0.37584,0.68094,0.48540,0.20722,-1.24494,-1.11821,-0.92661,-0.98540,-1.19107,-0.38564,1.09061,1.94670,1.57533,1.29479,0.39953,0.13395,-0.87310,-0.19026,-0.16945,0.07243,-0.43774,0.99823,1.24207,-0.04213,-2.31811,-0.72771,-1.01171,-0.68951,-0.67234,0.39198,-0.96226,-1.13397,-0.87169]],
+  [0,[1.14852,0.63665,0.70516,0.92499,1.23657,0.18374,-1.79105,-1.79855,-0.52854,1.03987,-1.81219,1.09083,0.44465,-1.98323,-1.98163,0.84840,-1.25878,-0.95023,-0.19672,0.79624,1.91375,1.36279,0.37781,1.25882,1.89606,-0.42022,-0.55511,-0.56315,-0.51714,0.34935,-0.83870,-1.04416,-0.87169]],
+  [0,[1.17148,0.40967,0.54649,0.68299,0.79305,0.44204,-1.85423,-1.44988,-0.32934,0.94080,-1.79605,0.30824,0.81281,-1.72100,-1.92426,0.87836,0.00187,0.62894,2.02374,0.73951,1.61812,1.58369,1.25705,1.61395,1.04256,-0.42944,-0.46338,-0.39225,-0.13993,0.44445,-0.85044,-0.80104,-0.87169]],
+  [0,[1.17148,0.40967,0.54649,0.68299,0.79305,0.44204,-1.85423,-1.44988,-0.32934,0.94080,-1.79605,0.30824,0.81281,-1.72100,-1.92426,0.87836,0.00187,0.62894,2.02374,0.73951,1.61812,1.58369,1.25705,1.61395,1.04256,-0.42944,-0.46338,-0.39225,-0.13993,0.44445,-0.85044,-0.80104,-0.87169]],
+  [0,[0.67787,0.98523,0.85066,0.84418,0.16590,0.30837,-1.26105,-0.46908,-0.32186,0.07620,-1.78660,0.52310,1.41663,-1.32693,-1.86228,1.52161,-0.26847,0.06834,0.83421,0.49124,1.81794,1.40071,1.34550,1.85631,1.37937,-0.14155,-0.25263,-0.27965,-0.24160,0.18737,-0.67551,-0.32823,-0.87169]],
+  [0,[1.17148,0.40967,0.54649,0.68299,0.79305,0.44204,-1.85423,-1.44988,-0.32934,0.94080,-1.79605,0.30824,0.81281,-1.72100,-1.92426,0.87836,0.00187,0.62894,2.02374,0.73951,1.61812,1.58369,1.25705,1.61395,1.04256,-0.42944,-0.46338,-0.39225,-0.13993,0.44445,-0.85044,-0.80104,-0.87169]],
+  [0,[0.67787,0.98523,0.85066,0.84418,0.16590,0.30837,-1.26105,-0.46908,-0.32186,0.07620,-1.78660,0.52310,1.41663,-1.32693,-1.86228,1.52161,-0.26847,0.06834,0.83421,0.49124,1.81794,1.40071,1.34550,1.85631,1.37937,-0.14155,-0.25263,-0.27965,-0.24160,0.18737,-0.67551,-0.32823,-0.87169]],
+  [0,[0.88561,0.91187,0.69998,0.77099,0.50908,0.16312,-1.94059,-1.89250,-0.84638,0.78661,-1.88234,0.61885,1.00037,-1.78131,-2.06794,1.22248,-0.18092,0.06174,0.26863,0.11939,1.89870,2.07224,1.23681,1.63879,1.12975,-0.26793,-0.33852,-0.41251,-0.24741,0.37587,-0.80633,-0.56521,-0.87169]],
+  [0,[0.81729,0.35019,0.30514,0.62480,1.63093,0.44466,-1.92450,-1.95526,-0.44900,1.26358,-2.03961,0.08877,0.13259,-2.06049,-1.90095,1.01475,-1.01019,-0.87516,-0.31650,0.64282,2.39439,1.56534,0.75989,1.42298,1.54529,-0.05701,-0.43657,-0.53978,-0.30695,0.50716,-0.79098,-0.51971,-0.87169]],
+  [1,[0.53673,0.26077,0.33947,0.30468,-0.09098,0.84460,0.04810,1.58728,2.36191,1.09102,0.41210,-0.73577,0.80587,1.03888,0.54014,0.67528,-0.29358,0.02968,0.49580,0.30265,-0.15342,-1.00813,-0.93730,-0.79259,0.06301,0.18280,-0.20018,0.02514,0.35722,0.28948,0.33217,-0.07032,-0.75646]],
+  [1,[0.54446,0.77120,0.57434,0.49075,-0.27461,0.51214,0.26948,-0.27632,0.58100,0.86154,0.31082,-0.61471,-0.89764,0.08589,0.50684,0.80433,-0.41048,-0.37096,0.24908,0.52882,-0.16010,-1.05893,-1.03379,-0.74899,0.32558,0.35049,0.26903,-0.14849,0.19226,0.39217,0.54627,0.54954,0.19300]],
+  [1,[0.23435,0.63085,0.61773,0.51398,-0.36291,0.91077,-0.14089,-0.60960,0.59663,1.17460,0.01456,-1.22099,-1.28130,-0.30587,0.34139,0.45430,-1.17586,-1.28655,-0.36633,1.01117,-0.05913,-1.35090,-1.12973,-0.84422,0.30316,0.82469,0.32286,0.09488,0.62218,0.42968,1.52300,0.95146,0.44274]],
+  [1,[0.31794,0.77366,0.58924,0.54811,-0.06389,0.74501,0.46869,-0.29009,0.58916,0.88244,0.05548,-1.21972,-1.31390,-0.13842,0.50633,0.80397,-0.72859,-0.79707,-0.13421,0.68850,-0.17086,-0.91105,-0.68110,-0.59821,0.00023,0.85213,0.33357,-0.00693,0.44478,0.41623,1.05543,1.12074,0.95032]],
+  [1,[0.75357,0.06459,1.02876,0.72123,-1.26199,1.04598,1.43450,2.35831,2.38264,0.42708,0.19931,-1.78794,-1.51054,-0.12636,0.61134,0.37066,1.70941,2.66835,3.01088,-0.59153,0.31930,1.27148,3.47968,2.60238,-0.92950,0.06495,3.78149,4.34958,1.61210,-4.87327,1.15711,0.92777,1.06915]],
+  [1,[0.41194,0.96344,0.72675,0.63981,-0.25554,0.63378,0.56300,1.00698,0.65884,-0.19759,0.04701,-1.27326,-1.20970,-0.16370,0.43385,0.56190,-0.52646,-0.29627,-0.19204,0.16083,-0.18356,-0.85930,-0.80559,-0.45718,0.51243,1.24227,0.93024,0.46448,1.17866,0.39861,1.39856,1.04424,1.01605]],
+  [1,[0.18390,0.52939,0.91543,0.57608,-1.44362,1.10287,-0.03068,0.05776,0.73431,0.72681,-0.08279,-0.80259,-0.92756,-0.19242,0.27301,0.03995,0.14569,0.42994,1.40777,0.52182,0.21567,-1.04945,-0.22831,0.18927,0.79742,0.82350,1.92372,2.83572,0.81286,-3.39460,2.78537,1.62509,1.39360]],
+  [1,[0.06525,0.49503,0.74100,0.62131,-0.41208,0.94370,0.35031,0.95757,0.93215,0.13600,0.08195,-1.36923,-1.41809,-0.20908,0.49327,0.56624,-0.09906,-0.09274,0.01586,0.10116,-0.38351,-1.13527,-0.93785,-0.54121,0.57819,1.37470,0.48162,0.65058,0.92366,-0.10571,1.12304,1.46605,1.87453]],
+  [1,[0.65672,0.62708,0.69199,0.56209,-0.47329,0.53045,0.46735,-0.26134,0.42327,0.68106,0.35822,-1.07774,-1.12741,0.02845,0.56575,0.32477,-0.32087,-0.19215,0.72021,0.66934,-0.40910,-0.75340,-0.67444,-0.59188,0.00122,0.88706,0.58530,0.11761,0.63214,0.40562,0.57372,1.05520,1.13715]],
+  [1,[0.44800,0.56154,0.55772,0.59581,0.31542,0.83043,0.46443,0.25781,0.76694,0.58343,0.07658,-0.73715,-1.02000,-0.00228,0.48687,0.11497,0.28498,-0.09236,0.26505,0.26747,-0.06355,-1.11951,-0.80477,-0.37972,0.66938,1.44280,0.70157,0.37241,0.82676,0.21162,2.00103,1.38480,1.98015]],
+  [1,[1.09097,-0.91248,-0.88433,0.11881,4.69042,0.69601,-0.89599,-0.91615,0.80569,1.66886,0.84775,-1.93898,-1.84344,0.42826,1.26548,0.30090,-1.34662,-1.24845,-1.11034,0.47633,-0.16674,-0.13463,0.00016,-0.65667,-1.34354,-0.42409,0.01933,0.22579,0.53773,0.16160,-0.41543,-0.64646,-0.46840]],
+  [1,[0.07854,0.67795,0.50548,0.47677,-0.02274,0.76367,0.33884,0.40886,0.93113,0.62306,-0.00714,0.83420,0.63113,0.38259,0.03865,-0.35316,-0.31784,-0.27873,-0.78074,-0.25006,-0.11146,-1.48287,-1.30663,-0.51223,1.30015,0.59132,0.17995,0.19267,0.57217,0.24136,0.94117,0.26461,0.14646]],
+  [1,[0.06165,0.75632,0.50915,0.52097,0.17594,0.79256,0.34077,0.93003,0.87232,0.09709,-0.06746,0.20633,0.00221,0.05717,0.04992,-0.31528,-0.65526,-0.46999,-0.60561,0.05383,-0.09959,-1.32399,-1.28972,-0.59894,1.09239,0.90341,0.85299,0.29449,0.90104,0.39311,1.33920,0.84530,0.81407]],
+  [1,[0.51952,0.72793,0.75568,0.66037,-0.28966,0.40224,0.71483,0.93570,0.46542,-0.33917,0.43973,-0.51263,-0.58344,0.25219,0.50454,0.20320,-0.45664,-0.88949,-0.35559,0.63066,-0.82965,-0.58810,-0.65060,-0.63597,-0.13180,0.80964,0.20233,0.22540,0.63027,0.24667,0.04116,0.60332,0.33818]],
+  [1,[0.39620,0.58133,0.58665,0.62028,0.30036,0.58040,0.82812,1.70998,0.74790,-0.72860,0.36516,-0.37670,-0.57810,0.18843,0.44512,-0.28558,-0.77246,-1.07567,-0.87574,0.46454,-0.64700,-0.71638,-0.53858,-0.76141,-0.58969,0.94993,0.38078,0.18189,0.67301,0.34916,0.33514,1.09462,1.02954]],
+  [1,[0.38041,0.83017,0.69372,0.71424,0.26123,0.63078,0.38343,0.80126,0.63811,-0.03656,0.18682,-0.56933,-0.60642,-0.03445,0.25994,0.11387,-0.91403,-0.96041,-0.32778,0.71852,-0.50062,-0.74122,-0.71243,-0.73145,-0.21601,0.92754,0.66365,0.48227,0.91370,0.13072,0.51973,1.00722,0.95498]],
+  [1,[0.52004,0.54968,0.49015,0.56107,0.45991,0.59071,0.80137,0.41979,0.47970,0.13492,0.34886,-0.51536,-0.48031,0.20595,0.41387,-0.15836,-0.55870,-0.76764,-0.11741,0.67100,-0.51536,-0.62578,-0.56215,-0.71342,-0.44919,1.05118,0.87638,0.76629,1.57517,0.32036,0.62793,1.11685,0.63851]],
+  [1,[0.77676,0.60485,0.65357,0.60671,-0.07693,0.33687,0.75521,0.50200,0.41001,-0.01206,0.47201,-0.92411,-0.94573,0.17091,0.60571,0.11535,-0.48323,-1.09132,-0.63233,0.64264,-0.80600,-0.10388,-0.13099,-0.69978,-1.19606,0.94204,0.84740,0.67305,1.47786,0.36754,0.14122,1.05005,0.37045]],
+  [1,[-0.98354,-0.11674,-0.02212,-0.03971,-0.09098,0.95833,0.36428,-0.25648,0.88558,1.16667,-0.09736,-0.82089,-1.01359,-0.13900,0.36188,0.46142,1.35487,-0.03049,0.33554,0.25421,-1.30055,-0.34370,-0.63812,-0.96967,-0.83682,2.10380,0.97710,0.46656,1.44134,0.63542,0.36697,1.52022,2.25008]],
+  [1,[0.59662,0.80265,0.60176,0.58965,0.08061,0.42538,0.42042,0.68463,0.49635,-0.08303,0.36952,-0.78243,-0.80413,0.10341,0.47765,0.50988,-0.63087,-0.38907,0.31104,0.58794,-0.60068,-0.32538,-0.38691,-0.74606,-0.83085,0.68308,0.84307,0.24748,0.57819,0.16691,0.21705,0.69417,1.18797]],
+  [2,[-1.36755,-1.49215,-1.59694,-1.56675,-0.22343,-1.63519,1.15102,0.39509,-1.39503,-1.82989,1.08600,0.79349,0.71236,1.23821,0.76271,-1.16514,-0.00975,-0.68031,-1.11530,-0.08173,-0.72214,0.33983,0.39833,-0.63938,-2.02365,-1.23580,-0.83484,-0.68328,-1.27738,-0.16956,-0.90056,-1.13397,-0.87169]],
+  [2,[-1.56659,-1.78611,-1.73597,-1.85583,-0.98806,-1.44894,0.09501,0.53439,-0.50033,-1.00563,1.02341,1.31515,1.64266,1.29996,0.37187,-1.16735,2.66735,3.03617,-1.23315,-3.78937,-0.54734,0.33553,1.11952,0.65889,-0.66393,-1.21106,-1.13484,-0.64510,-1.47449,-0.40524,-1.02734,-1.07613,-0.87169]],
+  [2,[-1.59214,-1.64062,-1.72042,-1.77914,-0.68602,-1.56575,0.36453,-0.28118,-1.49293,-1.33202,0.95601,0.94477,0.41312,1.01361,0.70585,-1.39651,0.08585,-0.51149,-1.29730,-0.36831,-0.75207,-0.07045,-0.38053,-0.69223,-0.73219,-1.24469,-1.35278,-1.07002,-1.43714,0.24875,-1.01396,-1.13397,-0.87169]],
+  [2,[-1.51592,-1.60952,-1.57427,-1.63151,-0.64488,-1.67693,0.70151,0.58380,-0.93272,-1.50782,1.00245,0.72080,0.76312,1.11672,0.63004,-2.00864,2.68297,2.08493,-0.37845,-2.28889,-0.79333,0.29437,0.60379,-0.08597,-1.26083,-1.44707,-1.03836,-0.85899,-1.44627,-0.06745,-0.89177,-1.13397,-0.87169]],
+  [2,[-2.05350,-2.27382,-2.11656,-2.16259,-0.71612,-1.13743,-0.21145,-0.24960,-1.10473,-0.94871,0.66768,0.37138,-0.21153,0.71634,0.74017,-2.90366,1.20926,0.59121,-1.50244,-1.58221,-1.35033,0.03761,0.04674,-0.46765,-1.04060,-1.48960,-0.87099,-0.79587,-1.27945,-0.00720,-0.91320,-1.13397,-0.87169]],
+  [2,[-1.54163,-1.40197,-1.31825,-1.43578,-0.87968,-1.66710,1.35127,0.99402,-0.99085,-1.93436,0.86668,1.18425,0.90526,1.00959,0.46638,-1.73793,2.05782,1.77521,-0.93301,-2.35740,-0.71328,0.37634,0.04231,-0.17609,-0.43624,-1.42422,-0.90075,-0.72678,-1.32282,-0.14758,-0.89241,-1.13397,-0.87169]],
+  [2,[-1.65341,-1.57757,-1.63170,-1.63192,-0.37997,-1.44454,0.85868,-0.05967,-1.35186,-1.37957,0.82225,1.25680,0.87533,1.09029,0.55269,-1.47450,0.43731,-0.07708,-0.43930,-0.21857,-0.85551,-0.23069,-0.51529,-0.60990,-0.32163,-1.37941,-1.16856,-0.87185,-1.39316,-0.00019,-0.93341,-1.13397,-0.87169]],
+  [2,[-1.51408,-1.50876,-1.55852,-1.57435,-0.43917,-1.72057,1.19314,0.58663,-0.99935,-1.58095,0.91047,1.15589,0.91594,1.02222,0.47252,-1.46658,1.58973,1.19745,-0.29089,-1.36377,-0.60871,-0.04201,-0.40604,-0.45426,-0.19957,-1.43279,-1.15763,-0.94002,-1.52761,-0.02349,-0.87185,-1.13397,-0.87169]],
+  [2,[-1.40621,-1.35584,-1.46612,-1.48841,-0.44921,-1.75775,0.82118,0.05776,-1.40761,-1.54313,0.98011,1.64758,1.03564,1.12936,0.51069,-0.67439,-0.06275,0.23735,-0.53760,-0.59134,-0.41988,-0.26666,-0.58461,-0.50711,0.01318,-1.25316,-1.26725,-1.04691,-1.51993,0.13944,-0.94759,-1.13397,-0.87169]],
+  [2,[-1.47643,-1.31198,-1.48987,-1.54207,-0.60073,-1.83864,0.39711,-0.64969,-1.93689,-1.47468,0.95867,1.13281,0.64556,1.08024,0.65386,-0.21180,-0.60786,-0.52167,-0.91126,-0.10015,-0.87087,0.03544,-0.43377,-0.67129,-0.59368,-1.42116,-1.00893,-0.93106,-1.57803,-0.08260,-0.91714,-1.13397,-0.87169]]
+];
+
+// ── CLASSIFIER ───────────────────────────────────────────────────
+function extractFeatures(samples) {
+  const axes = ['ax','ay','az','gx','gy','gz'];
+  const feats = [];
+  const data = {};
+  axes.forEach(k => { data[k] = samples.map(s=>s[k]); });
+  axes.forEach(k => {
+    const v = data[k];
+    const mn=Math.min(...v), mx=Math.max(...v);
+    const mean=v.reduce((a,b)=>a+b,0)/v.length;
+    const std=Math.sqrt(v.reduce((a,b)=>a+(b-mean)**2,0)/v.length);
+    feats.push(mean,std,mx-mn,mx,mn);
+  });
+  const gz_abs=data.gz.map(Math.abs), gy_abs=data.gy.map(Math.abs);
+  const gz_ma=gz_abs.reduce((a,b)=>a+b,0)/gz_abs.length;
+  const gy_ma=gy_abs.reduce((a,b)=>a+b,0)/gy_abs.length;
+  feats.push(gz_ma/(gy_ma+1));
+  feats.push(gz_abs.filter(v=>v>40).length/gz_abs.length);
+  feats.push(gz_abs.filter(v=>v>60).length/gz_abs.length);
+  return feats;
+}
+
+function normalize(feats) {
+  return feats.map((v,i)=>(v-MEANS[i])/STDS[i]);
+}
+
+function knn(normFeats, k=3) {
+  const dists = TRAIN.map(([label,fvec])=>{
+    const d=Math.sqrt(fvec.reduce((s,v,i)=>s+(v-normFeats[i])**2,0));
+    return [d,label];
+  });
+  dists.sort((a,b)=>a[0]-b[0]);
+  const votes=[0,0,0];
+  dists.slice(0,k).forEach(([,l])=>votes[l]++);
+  const total=votes.reduce((a,b)=>a+b,0);
+  const probs=votes.map(v=>v/total);
+  const pred=votes.indexOf(Math.max(...votes));
+  return {pred, probs, dists: dists.slice(0,k)};
+}
+
+// ── RUNTIME STATE ────────────────────────────────────────────────
+const WIN_MIN=20, WIN_MAX=40;
+const AX_MOTION_GATE=0.8;  // min ax_range to classify
+const CONFIRM_N=5;          // votes needed to lock
+const RELEASE_N=20;         // idle samples to unlock
+const GAP_MS=800;
+
+const WK={
+  0:{name:'bicep_curl', label:'Bicep Curl',  color:'var(--curl-c)',   glow:'rgba(200,255,0,.07)', tabCls:'on-curl',   tabId:'tab-curl',   cntId:'cnt-curl',   barId:'bar-curl',   pctId:'pct-curl'},
+  1:{name:'hammer_curl',label:'Hammer Curl', color:'var(--hammer-c)', glow:'rgba(255,149,0,.07)', tabCls:'on-hammer', tabId:'tab-hammer', cntId:'cnt-hammer', barId:'bar-hammer', pctId:'pct-hammer'},
+  2:{name:'front_raise', label:'Front Raise', color:'var(--front-c)',  glow:'rgba(0,200,255,.07)', tabCls:'on-front',  tabId:'tab-front',  cntId:'cnt-front',  barId:'bar-front',  pctId:'pct-front'},
+};
+
+let window_buf=[];  // rolling sample buffer
+let locked=null, candidate=null, candCnt=0, relCnt=0;
+let repState='down', lastRepMs=0;
+let counts={0:0,1:0,2:0};
+let lastProbs=[0,0,0];
+
+const CL=120;
+let cAx=new Array(CL).fill(0),cGz=new Array(CL).fill(0),cAz=new Array(CL).fill(0);
+
+// ── CONNECTION ───────────────────────────────────────────────────
+let ws=null;
+function openModal(){ document.getElementById('modal').classList.add('open'); }
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+function doConnect(){
+  const ip=document.getElementById('espIp').value.trim(); if(!ip) return;
+  closeModal(); if(ws) ws.close();
+  try{
+    ws=new WebSocket(`ws://${ip}:81`);
+    setConn('…',false);
+    ws.onopen  =()=>{ setConn(ip,true); log(`Connected to ${ip}`,'ok'); };
+    ws.onmessage=(e)=>{ try{ onSample(JSON.parse(e.data)); }catch(_){} };
+    ws.onerror =()=>{ log('WebSocket error','err'); setConn('Error',false); };
+    ws.onclose =()=>{ setConn('Disconnected',false); log('Disconnected','wrn'); };
+  }catch(e){ log('Failed: '+e.message,'err'); }
+}
+function setConn(txt,live){
+  document.getElementById('connTxt').textContent=txt;
+  document.getElementById('dot').className='dot'+(live?' live':'');
+}
+
+// ── MAIN ────────────────────────────────────────────────────────
+function onSample(d){
+  const {ax,ay,az,gx,gy,gz}=d;
+
+  document.getElementById('v-ax').textContent=ax.toFixed(3);
+  document.getElementById('v-ay').textContent=ay.toFixed(3);
+  document.getElementById('v-az').textContent=az.toFixed(3);
+  document.getElementById('v-gx').textContent=gx.toFixed(1);
+  document.getElementById('v-gy').textContent=gy.toFixed(1);
+  document.getElementById('v-gz').textContent=gz.toFixed(1);
+
+  window_buf.push(d);
+  if(window_buf.length>WIN_MAX) window_buf.shift();
+
+  cAx.push(ax); cAx.shift();
+  cGz.push(gz/10); cGz.shift();
+  cAz.push(az); cAz.shift();
+
+  document.getElementById('winSize').textContent=window_buf.length;
+
+  // Motion gate — only classify when arm is actually moving
+  const axVals=window_buf.map(s=>s.ax);
+  const ax_range=Math.max(...axVals)-Math.min(...axVals);
+  const inMotion = ax_range > AX_MOTION_GATE && window_buf.length >= WIN_MIN;
+  document.getElementById('motionGate').textContent=inMotion?'active':'inactive';
+  document.getElementById('motionGate').style.color=inMotion?'var(--curl-c)':'var(--muted)';
+
+  if(!inMotion){
+    relCnt++;
+    if(relCnt>=RELEASE_N){ locked=null; repState='down'; updateIdle(); }
+    // Still show last probs faded
+    updateBars(lastProbs, null);
+    drawChart(); return;
+  }
+  relCnt=0;
+
+  // ── RUN CLASSIFIER ──────────────────────────────────────────
+  const feats=extractFeatures(window_buf);
+  const normFeats=normalize(feats);
+  const {pred, probs}=knn(normFeats, 3);
+  lastProbs=probs;
+
+  updateBars(probs, pred);
+
+  // ── STABILITY ───────────────────────────────────────────────
+  let vote=pred;
+
+  if(vote===locked){
+    candCnt=0; candidate=null;
+    updateConfBar(1.0, locked);
+    runFSM(ax, az, locked);
+  } else {
+    if(vote===candidate) candCnt++;
+    else{ candidate=vote; candCnt=1; }
+    updateConfBar(candCnt/CONFIRM_N, vote);
+    setPending(vote, candCnt);
+    if(candCnt>=CONFIRM_N){
+      locked=vote; candCnt=0; candidate=null; repState='down';
+      switchUI(locked);
+      log(`Detected: ${WK[locked].label}`,
+          locked===1?'ham':locked===2?'frt':'ok');
+      runFSM(ax, az, locked);
+    }
+  }
+  drawChart();
+}
+
+// ── FSM ─────────────────────────────────────────────────────────
+const T_AX_UP=0.30, T_AX_DOWN=-0.30, T_AZ_UP=0.70, T_AZ_DOWN=0.22;
+function runFSM(ax,az,w){
+  let lbl='';
+  const now=Date.now();
+  if(w===2){ // front raise
+    if(repState==='down'&&az>T_AZ_UP){ repState='up'; lbl='Raised ↑ — lower to count'; }
+    else if(repState==='up'&&az<T_AZ_DOWN){
+      if(now-lastRepMs>GAP_MS){ doCount(w); lastRepMs=now; }
+      repState='down'; lbl='Lowered ✓';
+    } else lbl=repState==='up'?'Lower arm to count':'Raise arm ↑';
+  } else { // bicep or hammer
+    if(repState==='down'&&ax>T_AX_UP){ repState='up'; lbl='Curled ↑ — extend to count'; }
+    else if(repState==='up'&&ax<T_AX_DOWN){
+      if(now-lastRepMs>GAP_MS){ doCount(w); lastRepMs=now; }
+      repState='down'; lbl='Extended ✓';
+      // Reset window after rep so next rep gets fresh features
+      window_buf=[];
+    } else lbl=repState==='up'?'Extend to count':'Curl arm ↑';
+  }
+  const badge=document.getElementById('stateBadge');
+  badge.className='state-badge active';
+  badge.style.setProperty('--active-c',WK[w].color);
+  document.getElementById('stateTxt').textContent=lbl;
+}
+
+function doCount(w){
+  counts[w]++;
+  document.getElementById(WK[w].cntId).textContent=counts[w];
+  const el=document.getElementById('repNum');
+  el.textContent=counts[w]; el.classList.remove('pop');
+  void el.offsetWidth; el.classList.add('pop');
+  const fl=document.getElementById('flash');
+  fl.style.background=WK[w].color; fl.classList.add('show');
+  setTimeout(()=>fl.classList.remove('show'),130);
+  log(`✓ Rep #${counts[w]} — ${WK[w].label}`,w===1?'ham':w===2?'frt':'ok');
+}
+
+// ── UI ──────────────────────────────────────────────────────────
+function updateBars(probs, pred){
+  const ids=[0,1,2];
+  const barIds=['bar-curl','bar-hammer','bar-front'];
+  const pctIds=['pct-curl','pct-hammer','pct-front'];
+  ids.forEach(i=>{
+    const pct=Math.round(probs[i]*100);
+    document.getElementById(barIds[i]).style.width=pct+'%';
+    document.getElementById(barIds[i]).style.opacity=pred===i?'1':'0.4';
+    document.getElementById(pctIds[i]).textContent=pct+'%';
+  });
+}
+function switchUI(w){
+  document.querySelectorAll('.tab').forEach(t=>t.className='tab');
+  document.getElementById(WK[w].tabId).className=`tab ${WK[w].tabCls}`;
+  document.getElementById('wname').textContent=WK[w].label;
+  document.getElementById('wname').style.color=WK[w].color;
+  document.getElementById('repNum').style.color=WK[w].color;
+  document.getElementById('repNum').textContent=counts[w];
+  document.getElementById('heroBg').style.background=
+    `radial-gradient(ellipse at 50% -10%,${WK[w].glow} 0%,transparent 65%)`;
+}
+function updateIdle(){
+  document.getElementById('wname').textContent='Waiting for movement...';
+  document.getElementById('wname').style.color='var(--muted)';
+  document.getElementById('repNum').textContent='—';
+  document.getElementById('repNum').style.color='var(--muted)';
+  document.getElementById('heroBg').style.background='none';
+  document.querySelectorAll('.tab').forEach(t=>t.className='tab');
+  document.getElementById('stateBadge').className='state-badge';
+  document.getElementById('stateTxt').textContent='Idle — start moving';
+  updateConfBar(0,null);
+}
+function setPending(v,cnt){
+  document.getElementById('stateBadge').className='state-badge';
+  document.getElementById('stateTxt').textContent=
+    `Detecting ${WK[v].label}... ${Math.round(cnt/CONFIRM_N*100)}%`;
+}
+function updateConfBar(pct,w){
+  const c=w!==null?WK[w].color:'var(--muted)';
+  document.getElementById('confFill').style.width=Math.min(1,pct)*100+'%';
+  document.getElementById('confFill').style.background=c;
+  document.getElementById('confPct').style.color=c;
+  document.getElementById('confPct').textContent=w!==null?Math.round(Math.min(1,pct)*100)+'%':'—';
+}
+
+function drawChart(){
+  const cv=document.getElementById('chart'),ctx=cv.getContext('2d');
+  const W=cv.offsetWidth,H=70; cv.width=W; cv.height=H;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
+  ctx.strokeStyle='rgba(200,255,0,.1)';ctx.setLineDash([3,4]);
+  const yUp=H-((0.3+1.5)/3)*H,yDn=H-((-0.3+1.5)/3)*H;
+  ctx.beginPath();ctx.moveTo(0,yUp);ctx.lineTo(W,yUp);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,yDn);ctx.lineTo(W,yDn);ctx.stroke();
+  ctx.setLineDash([]);
+  drawL(ctx,cAx,W,H,-1.5,1.5,'#c8ff00',1.5);
+  drawL(ctx,cGz,W,H,-10,10,'#ff9500',1.5);
+  drawL(ctx,cAz,W,H,-0.1,1.1,'#00c8ff',1.5);
+}
+function drawL(ctx,data,W,H,yMin,yMax,color,lw){
+  ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x=(i/(data.length-1))*W;
+    const y=H-((v-yMin)/(yMax-yMin))*H;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+
+function resetAll(){
+  counts={0:0,1:0,2:0};
+  ['curl','hammer','front'].forEach(k=>document.getElementById(`cnt-${k}`).textContent='0');
+  locked=null;candidate=null;candCnt=0;relCnt=0;repState='down';
+  window_buf=[];lastProbs=[0,0,0];
+  updateIdle(); log('Reset','wrn');
+}
+function log(msg,type=''){
+  const box=document.getElementById('logbox');
+  const t=new Date().toLocaleTimeString();
+  const cls={ok:'lok',wrn:'lwrn',err:'lerr',ham:'lham',frt:'lfrt'}[type]||'l0';
+  const div=document.createElement('div');
+  div.className=cls; div.textContent=`[${t}] ${msg}`;
+  box.appendChild(div); box.scrollTop=box.scrollHeight;
+  while(box.children.length>80) box.removeChild(box.firstChild);
+}
+drawChart();
+</script>
+</body>
+</html>

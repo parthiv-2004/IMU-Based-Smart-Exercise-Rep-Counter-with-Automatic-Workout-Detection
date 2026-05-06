@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMU Data Collector</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f4f3ef; color: #1a1a1a; min-height: 100vh; }
+
+  .app { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  h1 { font-size: 22px; font-weight: 600; color: #111; }
+  .subtitle { font-size: 13px; color: #888; margin-top: 4px; margin-bottom: 1.5rem; }
+
+  .config { background: #fff; border: 1px solid #e5e3de; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .config label { font-size: 13px; color: #666; white-space: nowrap; }
+  .config input { flex: 1; min-width: 140px; font-size: 14px; padding: 7px 11px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; color: #111; outline: none; }
+  .config input:focus { border-color: #378ADD; }
+
+  .status-bar { display: flex; align-items: center; gap: 8px; padding: 0.6rem 1rem; border-radius: 8px; background: #fff; border: 1px solid #e5e3de; margin-bottom: 1rem; font-size: 13px; color: #666; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #D4537E; flex-shrink: 0; transition: background 0.3s; }
+  .dot.connected { background: #639922; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .stat { background: #fff; border: 1px solid #e5e3de; border-radius: 10px; padding: 0.85rem 1rem; text-align: center; }
+  .stat-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-value { font-size: 24px; font-weight: 600; color: #111; margin-top: 3px; }
+
+  .instruction-box { background: #EBF4FF; border: 1px solid #B5D4F4; border-radius: 10px; padding: 0.9rem 1.1rem; margin-bottom: 1rem; font-size: 14px; color: #0C447C; line-height: 1.5; }
+
+  .phase-card { background: #fff; border: 1px solid #e5e3de; border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 0.75rem; transition: border-color 0.2s; }
+  .phase-card.active { border-color: #378ADD; border-width: 2px; }
+  .phase-card.done { border-color: #639922; }
+
+  .phase-header { display: flex; align-items: center; gap: 12px; margin-bottom: 0.75rem; }
+  .phase-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; background: #f4f3ef; color: #888; flex-shrink: 0; }
+  .phase-num.active { background: #E6F1FB; color: #185FA5; }
+  .phase-num.done { background: #EAF3DE; color: #3B6D11; }
+  .phase-title { font-size: 15px; font-weight: 600; color: #111; }
+  .phase-desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .phase-badge { margin-left: auto; font-size: 11px; padding: 3px 10px; border-radius: 6px; font-weight: 500; }
+  .badge-waiting { background: #f4f3ef; color: #aaa; }
+  .badge-recording { background: #FAEEDA; color: #633806; }
+  .badge-done { background: #EAF3DE; color: #27500A; }
+
+  .imu-live { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+  .imu-val { background: #f9f8f5; border-radius: 7px; padding: 6px 8px; }
+  .imu-val-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.04em; }
+  .imu-val-num { font-size: 12px; font-weight: 600; color: #333; margin-top: 2px; font-family: 'Courier New', monospace; }
+
+  .sample-bar { height: 4px; border-radius: 2px; background: #f0ede8; margin-top: 10px; overflow: hidden; }
+  .sample-fill { height: 100%; background: #378ADD; width: 0%; transition: width 0.1s linear; }
+
+  .controls { display: flex; gap: 8px; margin-top: 1.25rem; flex-wrap: wrap; }
+  .btn { padding: 10px 20px; border-radius: 9px; font-size: 14px; font-weight: 500; border: 1px solid #ddd; background: #fff; color: #333; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: #f4f3ef; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primary { background: #185FA5; color: #fff; border-color: #185FA5; }
+  .btn-primary:hover { background: #0C447C; }
+  .btn-danger { background: #A32D2D; color: #fff; border-color: #A32D2D; }
+  .btn-danger:hover { background: #791F1F; }
+  .btn-amber { background: #BA7517; color: #fff; border-color: #BA7517; }
+  .btn-amber:hover { background: #854F0B; }
+
+  .log { background: #1a1a1a; color: #aaa; border-radius: 10px; padding: 0.85rem 1rem; max-height: 130px; overflow-y: auto; font-size: 12px; font-family: 'Courier New', monospace; margin-top: 1rem; }
+  .log-ok { color: #7dc55a; }
+  .log-warn { color: #f0a830; }
+  .log-err { color: #e05a5a; }
+
+  .footer { margin-top: 1rem; font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>IMU Data Collector</h1>
+  <p class="subtitle">Records labeled sensor data for bicep curl detection training</p>
+
+  <div class="config">
+    <label>ESP8266 IP</label>
+    <input type="text" id="espIp" value="192.168.43.100" placeholder="e.g. 192.168.43.50" />
+    <button class="btn btn-primary" onclick="connectWS()">Connect</button>
+  </div>
+
+  <div class="config">
+    <label>PC IP</label>
+    <input type="text" id="pcIp" value="192.168.1.40" placeholder="e.g. 192.168.1.40" />
+    <label style="margin-left:8px;">Port</label>
+    <input type="text" id="pcPort" value="5050" style="max-width:80px;" />
+  </div>
+
+  <div class="status-bar">
+    <div class="dot" id="connDot"></div>
+    <span id="connStatus">Not connected — enter ESP IP above and click Connect</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Cycle</div><div class="stat-value" id="cycleCount">0</div></div>
+    <div class="stat"><div class="stat-label">Samples</div><div class="stat-value" id="totalSamples">0</div></div>
+    <div class="stat"><div class="stat-label">Phase</div><div class="stat-value" id="currentPhaseNum">—</div></div>
+  </div>
+
+  <div class="instruction-box" id="instructionBox">
+    Connect to your ESP8266, then press <strong>Start</strong> to begin.
+  </div>
+
+  <div id="phaseCards"></div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="startBtn" onclick="startCycle()" disabled>Start</button>
+    <button class="btn btn-amber" id="pauseBtn" onclick="togglePause()" disabled>Pause</button>
+    <button class="btn" id="retryBtn" onclick="retryPhase()" disabled>Retry phase</button>
+    <button class="btn btn-danger" id="endBtn" onclick="endSession()" disabled>End &amp; Save</button>
+  </div>
+
+  <div class="log" id="logBox"></div>
+
+  <div class="footer">Data saved to <code>imu_recordings/</code> folder next to your Python server file.</div>
+</div>
+
+<script>
+const PHASES = [
+  { id: 'bicep_curl',      label: 'Bicep curl',      desc: 'Curl arm upward, elbow stays fixed',    instruction: 'Slowly curl your forearm upward. Keep your elbow pinned to your side. Hold briefly at the top.' },
+  { id: 'bicep_extension', label: 'Bicep extension', desc: 'Lower forearm back down, controlled',    instruction: 'Slowly lower your forearm back down in a controlled movement. Do not drop it.' },
+  { id: 'shoulder_raise',  label: 'Shoulder raise',  desc: 'Raise whole straight arm upward',        instruction: 'Raise your entire arm upward with shoulder only. Keep your elbow fully straight — do NOT bend it.' },
+  { id: 'shoulder_lower',  label: 'Shoulder lower',  desc: 'Lower whole straight arm back down',     instruction: 'Lower your entire straight arm back down slowly using your shoulder.' },
+];
+
+const PHASE_DURATION_MS = 4000;
+
+let ws = null, connected = false, running = false, paused = false;
+let currentPhase = -1, cycleCount = 0, totalSamples = 0;
+let allData = [], currentPhaseData = [], phaseTimer = null, phaseStartTime = null;
+
+function buildCards() {
+  document.getElementById('phaseCards').innerHTML = PHASES.map((p, i) => `
+    <div class="phase-card" id="card-${i}">
+      <div class="phase-header">
+        <div class="phase-num" id="num-${i}">${i+1}</div>
+        <div>
+          <div class="phase-title">${p.label}</div>
+          <div class="phase-desc">${p.desc}</div>
+        </div>
+        <span class="phase-badge badge-waiting" id="badge-${i}">Waiting</span>
+      </div>
+      <div class="imu-live">
+        ${['ax','ay','az','gx','gy','gz'].map(k => `
+          <div class="imu-val">
+            <div class="imu-val-label">${k}</div>
+            <div class="imu-val-num" id="${k}-${i}">—</div>
+          </div>`).join('')}
+      </div>
+      <div class="sample-bar"><div class="sample-fill" id="fill-${i}"></div></div>
+    </div>`).join('');
+}
+buildCards();
+
+function log(msg, type='') {
+  const box = document.getElementById('logBox');
+  const t = new Date().toLocaleTimeString();
+  const cls = type==='ok'?'log-ok':type==='warn'?'log-warn':type==='err'?'log-err':'';
+  box.innerHTML += `<div class="${cls}">[${t}] ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function connectWS() {
+  const ip = document.getElementById('espIp').value.trim();
+  if (!ip) { log('Enter ESP IP first', 'err'); return; }
+  try {
+    if (ws) ws.close();
+    ws = new WebSocket(`ws://${ip}:81`);
+    document.getElementById('connStatus').textContent = `Connecting to ${ip}...`;
+    ws.onopen = () => {
+      connected = true;
+      document.getElementById('connDot').className = 'dot connected';
+      document.getElementById('connStatus').textContent = `Connected to ${ip}`;
+      document.getElementById('startBtn').disabled = false;
+      log(`Connected to ESP8266 at ${ip}`, 'ok');
+    };
+    ws.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (running && !paused && currentPhase >= 0) {
+          currentPhaseData.push({ t: Date.now() - phaseStartTime, ax: d.ax, ay: d.ay, az: d.az, gx: d.gx, gy: d.gy, gz: d.gz });
+          totalSamples++;
+          document.getElementById('totalSamples').textContent = totalSamples;
+          ['ax','ay','az','gx','gy','gz'].forEach(k => {
+            const el = document.getElementById(`${k}-${currentPhase}`);
+            if (el && typeof d[k] === 'number') el.textContent = d[k].toFixed(3);
+          });
+          const pct = Math.min(100, ((Date.now() - phaseStartTime) / PHASE_DURATION_MS) * 100);
+          document.getElementById(`fill-${currentPhase}`).style.width = pct.toFixed(1) + '%';
+        }
+      } catch(err) {}
+    };
+    ws.onerror = () => { log('WebSocket error — check ESP IP and ensure ESP is powered on', 'err'); };
+    ws.onclose = () => {
+      connected = false;
+      document.getElementById('connDot').className = 'dot';
+      document.getElementById('connStatus').textContent = 'Disconnected';
+      document.getElementById('startBtn').disabled = true;
+      log('Connection closed', 'warn');
+    };
+  } catch(err) { log('Failed: ' + err.message, 'err'); }
+}
+
+function setPhaseUI(i, state) {
+  document.getElementById(`card-${i}`).className = 'phase-card' + (state==='active'?' active':state==='done'?' done':'');
+  document.getElementById(`num-${i}`).className = 'phase-num' + (state==='active'?' active':state==='done'?' done':'');
+  const badge = document.getElementById(`badge-${i}`);
+  if (state==='active') { badge.className='phase-badge badge-recording'; badge.textContent='Recording...'; }
+  else if (state==='done') { badge.className='phase-badge badge-done'; badge.textContent='Done'; }
+  else { badge.className='phase-badge badge-waiting'; badge.textContent='Waiting'; }
+}
+
+function startCycle() {
+  if (!connected) { log('Not connected to ESP', 'err'); return; }
+  running = true; paused = false;
+  cycleCount++;
+  document.getElementById('cycleCount').textContent = cycleCount;
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('pauseBtn').disabled = false;
+  document.getElementById('retryBtn').disabled = false;
+  document.getElementById('endBtn').disabled = false;
+  for (let i = 0; i < 4; i++) { setPhaseUI(i, ''); document.getElementById(`fill-${i}`).style.width = '0%'; }
+  log(`Cycle ${cycleCount} started`, 'ok');
+  runPhase(0);
+}
+
+function runPhase(i) {
+  currentPhase = i; currentPhaseData = []; phaseStartTime = Date.now();
+  document.getElementById('currentPhaseNum').textContent = i + 1;
+  setPhaseUI(i, 'active');
+  document.getElementById('instructionBox').innerHTML = `<strong>Phase ${i+1} — ${PHASES[i].label}:</strong> ${PHASES[i].instruction}`;
+  log(`Phase ${i+1}: ${PHASES[i].label}`, 'ok');
+  phaseTimer = setTimeout(() => finishPhase(i), PHASE_DURATION_MS);
+}
+
+function finishPhase(i) {
+  clearTimeout(phaseTimer);
+  setPhaseUI(i, 'done');
+  allData.push({ cycle: cycleCount, phase_index: i, phase_id: PHASES[i].id, label: PHASES[i].label, sample_count: currentPhaseData.length, samples: currentPhaseData });
+  log(`Phase ${i+1} done — ${currentPhaseData.length} samples recorded`, 'ok');
+  if (i < 3) {
+    setTimeout(() => { if (running && !paused) runPhase(i + 1); }, 700);
+  } else {
+    running = false; currentPhase = -1;
+    document.getElementById('currentPhaseNum').textContent = '—';
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('startBtn').textContent = 'Next cycle';
+    document.getElementById('instructionBox').innerHTML = `<strong>Cycle ${cycleCount} complete!</strong> Press Next cycle to continue, or End &amp; Save to finish.`;
+    log(`Cycle ${cycleCount} complete!`, 'ok');
+  }
+}
+
+function togglePause() {
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+  if (paused) { clearTimeout(phaseTimer); log('Paused', 'warn'); }
+  else {
+    const elapsed = currentPhaseData.length * 50;
+    const remaining = Math.max(500, PHASE_DURATION_MS - elapsed);
+    phaseTimer = setTimeout(() => finishPhase(currentPhase), remaining);
+    log('Resumed');
+  }
+}
+
+function retryPhase() {
+  if (currentPhase < 0) return;
+  clearTimeout(phaseTimer);
+  if (allData.length > 0 && allData[allData.length-1].phase_index === currentPhase) {
+    totalSamples -= currentPhaseData.length;
+    document.getElementById('totalSamples').textContent = totalSamples;
+    allData.pop();
+  }
+  log(`Retrying phase ${currentPhase+1}`, 'warn');
+  runPhase(currentPhase);
+}
+
+function endSession() {
+  clearTimeout(phaseTimer); running = false; paused = false;
+  if (allData.length === 0) { log('No data recorded yet', 'err'); return; }
+
+  const payload = {
+    session_id: 'session_' + Date.now(),
+    recorded_at: new Date().toISOString(),
+    total_cycles: cycleCount,
+    total_samples: totalSamples,
+    phase_definitions: PHASES.map(p => ({ id: p.id, label: p.label })),
+    data: allData
+  };
+
+  const pcIp = document.getElementById('pcIp').value.trim();
+  const pcPort = document.getElementById('pcPort').value.trim() || '5050';
+
+  log('Sending data to PC server...', 'warn');
+  fetch(`http://${pcIp}:${pcPort}/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(res => {
+    log(`Saved on PC! File: ${res.filename} (${res.total_samples} samples)`, 'ok');
+    document.getElementById('instructionBox').innerHTML = `Data saved to <strong>${res.filename}</strong> on your PC.`;
+  })
+  .catch(() => {
+    log('Could not reach PC server — downloading JSON directly to this PC', 'warn');
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `imu_session_${Date.now()}.json`;
+    a.click();
+    log('Downloaded as imu_session_*.json', 'ok');
+  });
+}
+</script>
+</body>
+</html>
