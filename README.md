@@ -73,7 +73,7 @@ Browser Dashboard
 
 ---
 
-# Detailed Working
+# Working
 
 ## 1. IMU Data Acquisition
 
