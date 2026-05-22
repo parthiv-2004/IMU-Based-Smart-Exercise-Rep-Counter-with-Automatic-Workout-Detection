@@ -340,22 +340,6 @@ Dashboard Visualization
 
 ---
 
-## Repository Structure
-
-```text
-├── firmware/
-│   └── esp8266_imu_server.ino
-├── dashboard/
-│   ├── index.html
-│   ├── classifier.js
-│   ├── app.js
-│   └── styles.css
-├── dataset/
-├── images/
-└── README.md
-```
-
----
 
 ## How It Works
 
